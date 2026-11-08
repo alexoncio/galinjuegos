@@ -51,8 +51,8 @@ button:hover{background:#777}
 game-shell{display:none}
 </style>
 <game-shell id="mpShell" game-id="survival-world-galinjuegos-v1" rounds="1">
- <game-lobby id="mpLobby" reconnect></game-lobby>
- <game-peer-connection id="mpMatch"></game-peer-connection>
+ <game-lobby id="mpLobby" url="https://signalling.htmlgamekit.dev" reconnect></game-lobby>
+ <game-peer-connection id="mpMatch" connect-timeout="30000"></game-peer-connection>
 </game-shell>
 <div id="mpOverlay">
  <div id="mpCard">
@@ -1138,47 +1138,98 @@ const mpLobby=document.getElementById("mpLobby");
 const mpMatch=document.getElementById("mpMatch");
 const mpStatusEl=document.getElementById("mpStatus");
 const mpShell=document.getElementById("mpShell");
+let mpLobbyConnected=false;
 function mpStatus(t){mpStatusEl.textContent=t;}
-function mpCreate(){
- if(!customElements.get("game-lobby")){mpStatus("Cargando el sistema online… espera unos segundos.");return;}
- mpIsHost=true;mpStatus("Creando sala…");
- try{mpLobby.createRoom();}catch(e){mpStatus("No se pudo crear la sala. Recarga la página e inténtalo otra vez.");}
+function mpWaitForLobby(){
+ return new Promise(async(resolve,reject)=>{
+  try{
+   await Promise.all([
+    customElements.whenDefined("game-shell"),
+    customElements.whenDefined("game-lobby"),
+    customElements.whenDefined("game-peer-connection")
+   ]);
+   if(mpLobbyConnected) return resolve();
+   const timer=setTimeout(()=>{cleanup();reject(new Error("timeout"));},15000);
+   const connected=()=>{cleanup();resolve();};
+   const failed=e=>{cleanup();reject(new Error(e.message||e.code||"servidor no disponible"));};
+   function cleanup(){
+    clearTimeout(timer);
+    mpLobby.removeEventListener("game-lobby-connected",connected);
+    mpLobby.removeEventListener("game-lobby-error",failed);
+   }
+   mpLobby.addEventListener("game-lobby-connected",connected);
+   mpLobby.addEventListener("game-lobby-error",failed);
+   // Re-check after listeners are attached to avoid missing a fast connection.
+   if(mpLobbyConnected) connected();
+  }catch(e){reject(e);}
+ });
 }
-function mpJoin(){
+async function mpCreate(){
+ mpStatus("Preparando el sistema de salas…");
+ try{
+  await mpWaitForLobby();
+  mpIsHost=true;
+  mpStatus("Conectado. Creando sala…");
+  mpLobby.createRoom();
+ }catch(e){
+  mpStatus("No se pudo conectar con el servidor de salas. Comprueba que tienes Internet y recarga la página. ("+e.message+")");
+ }
+}
+async function mpJoin(){
  const code=document.getElementById("mpCodeInput").value.trim().toUpperCase();
  if(!code){mpStatus("Escribe primero el código de la sala.");return;}
- mpIsHost=false;mpStatus("Entrando en la sala…");
- try{mpLobby.joinRoom(code);}catch(e){mpStatus("No se pudo entrar. Comprueba el código.");}
+ mpStatus("Conectando y entrando en la sala…");
+ try{
+  await mpWaitForLobby();
+  mpIsHost=false;
+  mpLobby.joinRoom(code);
+ }catch(e){
+  mpStatus("No se pudo conectar con el servidor de salas. Comprueba Internet y el código. ("+e.message+")");
+ }
 }
 function mpReady(){
  if(!mpRoomCode){mpStatus("Primero crea o entra en una sala.");return;}
- mpStatus("Esperando a que el otro jugador esté listo…");
- mpLobby.ready();
- document.getElementById("mpReady").disabled=true;
+ mpStatus("Listo. Esperando a que el otro jugador pulse «Estoy listo»…");
+ try{mpLobby.ready();document.getElementById("mpReady").disabled=true;}
+ catch(e){mpStatus("No se pudo confirmar que estás listo. Recarga e inténtalo otra vez.");}
 }
 function mpSolo(){
  document.getElementById("mpOverlay").style.display="none";
  document.getElementById("mpBar").style.display="none";
 }
-mpLobby.addEventListener("game-lobby-connected",()=>mpStatus("Conectado al servidor. Crea una sala o introduce un código."));
+mpLobby.addEventListener("game-lobby-connected",()=>{
+ mpLobbyConnected=true;
+ mpStatus("Conectado al servidor. Ya puedes crear una sala o introducir un código.");
+});
 mpLobby.addEventListener("game-lobby-room",e=>{
  mpRoomCode=e.code||"";
  document.getElementById("mpRoom").style.display="block";
- document.getElementById("mpRoomCode").textContent=mpRoomCode;
- mpStatus("Sala creada. Comparte el código y pulsa «¡Estoy listo!» cuando esté el otro jugador.");
+ document.getElementById("mpRoomCode").textContent=mpRoomCode||"Código no recibido";
+ document.getElementById("mpReady").disabled=false;
+ mpStatus("Sala preparada. Comparte el código y cuando estén los dos, ambos pulsad «¡Estoy listo!». Jugadores: "+((e.players||[]).length));
 });
-mpLobby.addEventListener("game-lobby-error",e=>mpStatus("Error de sala: "+(e.message||e.code||"inténtalo de nuevo")));
-mpLobby.addEventListener("game-lobby-start",()=>mpStatus("Conectando los dos jugadores…"));
+mpLobby.addEventListener("game-lobby-player",e=>{
+ const action=e.action||"";
+ if(action==="joined") mpStatus("Se ha unido otro jugador. Cuando estéis los dos, pulsad «¡Estoy listo!»."); 
+ if(action==="left") mpStatus("El otro jugador ha salido de la sala.");
+});
+mpLobby.addEventListener("game-lobby-error",e=>{
+ mpStatus("Error del servidor: "+(e.message||e.code||"no se pudo crear o entrar en la sala"));
+});
+mpLobby.addEventListener("game-lobby-start",()=>mpStatus("Sala lista. Conectando los dos ordenadores…"));
 mpMatch.addEventListener("game-peer-connection-open",()=>{
  mpConnected=true;
  document.getElementById("mpOverlay").style.display="none";
  document.getElementById("mpBar").style.display="block";
  document.getElementById("mpConnection").textContent="conectado";
- mpStatus("¡Conectados!");
 });
-mpMatch.addEventListener("game-peer-connection-close",()=>{
+mpMatch.addEventListener("game-peer-connection-close",e=>{
  mpConnected=false;remotePlayer=null;
  document.getElementById("mpConnection").textContent="desconectado";
+ mpStatus("Se ha cerrado la conexión ("+(e.reason||"desconocido")+"). Vuelve a crear o entrar en una sala.");
+});
+mpMatch.addEventListener("game-peer-connection-ice",e=>{
+ if(e.state==="no-servers") mpStatus("El servidor no ha proporcionado servidores ICE. La conexión puede no funcionar en algunas redes.");
 });
 mpMatch.addEventListener("game-peer-connection-message",e=>{
  const d=e.data;
@@ -1191,7 +1242,17 @@ setInterval(()=>{
   mpMatch.send({type:"player-position",x:player.x,y:player.y},{reliable:false});
  }
 },80);
-
+window.addEventListener("error",e=>{
+ if(e.message && /htmlgamekit|module|custom element/i.test(e.message)) mpStatus("No se ha podido cargar el módulo multijugador: "+e.message);
+});
+window.addEventListener("unhandledrejection",e=>{
+ mpStatus("Error al iniciar el multijugador: "+(e.reason?.message||String(e.reason)));
+});
+setTimeout(()=>{
+ if(!mpLobbyConnected && !mpConnected){
+  mpStatus("Aún no conecta con el servidor. Comprueba Internet, recarga la página y prueba de nuevo.");
+ }
+},18000);
 </script>
 <script type="module" src="https://esm.sh/htmlgamekit/auto"></script>\n</body>
 </html>
