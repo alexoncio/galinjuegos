@@ -4,80 +4,120 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Prueba de acceso - GALINJUEGOS</title>
+  <title>Acceso - GALINJUEGOS</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
+
 <body>
   <h1>GALINJUEGOS</h1>
-  <p>Prueba del sistema de acceso</p>
+  <h2>Acceso de usuarios</h2>
 
-  <div id="mensaje">Comprobando acceso...</div>
+  <div id="login">
+    <p>Inicia sesión para comprobar tu acceso.</p>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <input id="email" type="email"
+      placeholder="Correo electrónico">
+
+    <br><br>
+
+    <input id="password" type="password"
+      placeholder="Contraseña">
+
+    <br><br>
+
+    <button id="entrar">INICIAR SESIÓN</button>
+  </div>
+
+  <p id="mensaje">Esperando inicio de sesión...</p>
+
   <script>
-    const SUPABASE_URL = "https://nloapfrvzhuapbfgioug.supabase.co";
-    const SUPABASE_KEY = "sb_publishable_ep2tq4BTA_5pNoBIMYBJRg__qiKuie_";
+    const SUPABASE_URL =
+      "https://nloapfrvzhuapbfgioug.supabase.co";
+
+    const SUPABASE_KEY =
+      "sb_publishable_ep2tq4BTA_5pNoBIMYBJRg__qiKuie_";
 
     const supabase = window.supabase.createClient(
       SUPABASE_URL,
       SUPABASE_KEY
     );
 
+    const mensaje = document.getElementById("mensaje");
+    const login = document.getElementById("login");
+
     async function comprobarAcceso() {
-       const mensaje = document.getElementById("mensaje");
+      mensaje.textContent = "Comprobando acceso...";
 
-  try {
-    mensaje.textContent = "PASO 1: JavaScript funciona";
+      try {
+        const { data: { user }, error } =
+          await supabase.auth.getUser();
 
-    const { data: { user }, error } =
-      await supabase.auth.getUser();
+        if (error) throw error;
 
-    if (error) {
-      mensaje.textContent =
-        "Error de inicio de sesión: " + error.message;
-      return;
+        if (!user) {
+          mensaje.textContent =
+            "Inicia sesión para continuar.";
+          return;
+        }
+
+        const { data, error: errorSolicitud } =
+          await supabase
+            .from("access_requests")
+            .select("status")
+            .eq("email", user.email)
+            .maybeSingle();
+
+        if (errorSolicitud) throw errorSolicitud;
+
+        if (data?.status === "approved") {
+          login.style.display = "none";
+          mensaje.textContent =
+            "Acceso aprobado. Bienvenido a GALINJUEGOS.";
+        } else if (data?.status === "pending") {
+          mensaje.textContent =
+            "Tu solicitud todavía está pendiente.";
+        } else {
+          mensaje.textContent =
+            "No tienes una solicitud aprobada.";
+        }
+
+      } catch (error) {
+        mensaje.textContent =
+          "No se pudo comprobar el acceso: " + error.message;
+      }
     }
 
-    if (!user) {
-      mensaje.textContent =
-        "No hay una sesión iniciada.";
-      return;
-    }
+    document.getElementById("entrar")
+      .addEventListener("click", async () => {
 
-    mensaje.textContent = "Buscando solicitud...";
+        const email =
+          document.getElementById("email").value.trim();
 
-    const { data, error: errorSolicitud } =
-      await supabase
-        .from("access_requests")
-        .select("status")
-        .eq("email", user.email)
-        .maybeSingle();
+        const password =
+          document.getElementById("password").value;
 
-    if (errorSolicitud) {
-      mensaje.textContent =
-        "Error al buscar solicitud: " +
-        errorSolicitud.message;
-      return;
-    }
+        if (!email || !password) {
+          mensaje.textContent =
+            "Introduce tu correo y contraseña.";
+          return;
+        }
 
-    if (data && data.status === "approved") {
-      mensaje.textContent =
-        "Acceso aprobado. ¡Bienvenido a GALINJUEGOS!";
-    } else if (data && data.status === "pending") {
-      mensaje.textContent =
-        "Tu solicitud todavía está pendiente.";
-    } else if (data && data.status === "rejected") {
-      mensaje.textContent =
-        "Tu solicitud ha sido rechazada.";
-    } else {
-      mensaje.textContent =
-        "No encontramos una solicitud de acceso.";
-    }
+        mensaje.textContent = "Iniciando sesión...";
 
-  } catch (error) {
-    mensaje.textContent =
-      "Error: " + error.message;
-  }
-}
+        const { error } =
+          await supabase.auth.signInWithPassword({
+            email,
+            password
+          });
+
+        if (error) {
+          mensaje.textContent =
+            "No se pudo iniciar sesión. Comprueba tus datos.";
+          return;
+        }
+
+        await comprobarAcceso();
+      });
 
     comprobarAcceso();
   </script>
