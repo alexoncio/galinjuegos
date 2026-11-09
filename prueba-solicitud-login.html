@@ -1,0 +1,613 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GALINJUEGOS — Prueba de acceso</title>
+
+<style>
+*{box-sizing:border-box}
+
+body{
+margin:0;
+padding:16px;
+background:#17152f;
+font-family:Arial,sans-serif;
+color:#fff
+}
+
+header{
+background:#30205a;
+border-radius:20px;
+padding:22px;
+margin-bottom:16px
+}
+
+header h1{
+margin:0;
+font-size:clamp(25px,5vw,38px)
+}
+
+header p{
+margin:8px 0 0;
+font-size:18px
+}
+
+.panel{
+background:#272343;
+border-radius:18px;
+padding:16px;
+margin-bottom:16px
+}
+
+.panel label{
+display:block;
+margin-bottom:8px;
+font-weight:bold
+}
+
+input{
+width:100%;
+padding:12px;
+border:2px solid #a78bfa;
+border-radius:12px;
+font-size:16px;
+margin-bottom:10px
+}
+
+button{
+border:0;
+border-radius:30px;
+padding:12px 16px;
+background:#303030;
+color:white;
+font-size:16px;
+font-weight:bold;
+cursor:pointer
+}
+
+.save{
+background:#7c3aed;
+width:100%
+}
+
+button:disabled{
+opacity:.6;
+cursor:wait
+}
+
+.screen{
+position:fixed;
+inset:0;
+z-index:99999;
+overflow:auto;
+background:#17152f;
+padding:clamp(16px,4vw,48px);
+display:flex;
+align-items:center;
+justify-content:center
+}
+
+.box{
+width:100%;
+max-width:520px;
+background:#272343;
+border:2px solid #a78bfa;
+border-radius:22px;
+padding:24px;
+box-shadow:0 12px 45px #0008
+}
+
+.hidden{
+display:none!important
+}
+
+.games{
+display:grid;
+grid-template-columns:repeat(2,minmax(0,1fr));
+gap:12px
+}
+
+.card{
+padding:12px;
+border-radius:20px;
+min-width:0
+}
+
+.orange{background:#f97316}
+.blue{background:#2563eb}
+.green{background:#16a34a}
+.pink{background:#db2777}
+
+.thumb{
+background:#ffffff55;
+border-radius:14px;
+padding:24px;
+text-align:center;
+font-size:34px
+}
+
+.card h2{
+font-size:20px;
+margin:12px 0
+}
+
+.play{
+width:100%;
+background:#30205a
+}
+
+#status{
+font-size:14px;
+line-height:1.4;
+margin:10px 0 0
+}
+
+.add{
+margin-top:16px;
+padding:22px;
+text-align:center;
+background:#272343;
+border-radius:20px
+}
+
+@media(max-width:520px){
+body{padding:10px}
+.games{grid-template-columns:1fr}
+}
+</style>
+</head>
+
+<body>
+
+<section id="requestScreen" class="screen">
+<div class="box">
+
+<h2>GALINJUEGOS — Acceso privado</h2>
+
+<p>Solicita permiso para entrar a GALINJUEGOS.</p>
+
+<label for="requestName">Tu nombre</label>
+<input id="requestName"
+autocomplete="name"
+placeholder="Escribe tu nombre">
+
+<label for="requestEmail">Tu correo</label>
+<input id="requestEmail"
+type="email"
+autocomplete="email"
+placeholder="Escribe tu correo">
+
+<button id="requestBtn"
+class="save"
+onclick="enviarSolicitud()">
+PEDIR SOLICITUD
+</button>
+
+<p id="requestStatus" aria-live="polite"></p>
+
+<p>
+Después de aprobar tu solicitud,
+tendrás que iniciar sesión para entrar.
+</p>
+
+</div>
+</section>
+
+<section id="loginScreen" class="screen hidden">
+<div class="box">
+
+<h2>GALINJUEGOS — Acceso de usuarios</h2>
+
+<p>Tu solicitud está aprobada. Inicia sesión para continuar.</p>
+
+<label for="loginEmail">Correo electrónico</label>
+<input id="loginEmail"
+type="email"
+autocomplete="username"
+placeholder="Tu correo">
+
+<label for="loginPassword">Contraseña</label>
+<input id="loginPassword"
+type="password"
+autocomplete="current-password"
+placeholder="Tu contraseña">
+
+<button id="loginBtn"
+class="save"
+onclick="iniciarSesion()">
+INICIAR SESIÓN
+</button>
+
+<p id="loginStatus" aria-live="polite"></p>
+
+<button onclick="volverSolicitud()">VOLVER</button>
+
+</div>
+</section>
+
+<section id="mainSite" class="hidden">
+
+<header>
+<h1>GALINJUEGOS</h1>
+<p>¡Descubre nuestros mejores juegos!</p>
+</header>
+
+<section class="panel">
+
+<label for="gameUrl">Conectar Survival World</label>
+
+<input id="gameUrl"
+type="url"
+placeholder="Pega aquí la URL de tu juego (https://...)">
+
+<button class="save" onclick="guardarURL()">
+GUARDAR URL
+</button>
+
+<p id="gameStatus" aria-live="polite"></p>
+
+<p>Esta URL se guarda solo en este navegador.</p>
+
+</section>
+
+<div class="games">
+
+<div class="card orange">
+<div class="thumb">🚀</div>
+<h2>Survival World</h2>
+<button class="play" onclick="jugar()">JUGAR</button>
+</div>
+
+<div class="card blue">
+<div class="thumb">🚗</div>
+<h2>Juego 2</h2>
+<button class="play"
+onclick="alert('Añade este juego más adelante')">
+JUGAR
+</button>
+</div>
+
+<div class="card green">
+<div class="thumb">🧩</div>
+<h2>Juego 3</h2>
+<button class="play"
+onclick="alert('Añade este juego más adelante')">
+JUGAR
+</button>
+</div>
+
+<div class="card pink">
+<div class="thumb">⚔️</div>
+<h2>Juego 4</h2>
+<button class="play"
+onclick="alert('Añade este juego más adelante')">
+JUGAR
+</button>
+</div>
+
+</div>
+
+<div class="add">
+<h2>＋ Añadir más juegos</h2>
+<p>¡Tu colección puede crecer todo lo que quieras!</p>
+</div>
+
+<section class="panel">
+<button onclick="cerrarSesion()">CERRAR SESIÓN</button>
+</section>
+
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+
+const SUPABASE_URL =
+'https://nloapfrvzhuapbfgioug.supabase.co';
+
+// Usa la clave publishable de tu proyecto Supabase.
+const SUPABASE_PUBLISHABLE_KEY =
+'sb_publishable_ep2tq4BTA_5pNoBIMYBJRg__qiKuie_';
+
+const sb = window.supabase.createClient(
+SUPABASE_URL,
+SUPABASE_PUBLISHABLE_KEY
+);
+
+const $ = id => document.getElementById(id);
+
+function show(which){
+[
+'requestScreen',
+'loginScreen',
+'mainSite'
+].forEach(id=>{
+$(id).classList.toggle('hidden',id!==which);
+});
+}
+
+function setMsg(id,msg){
+$(id).textContent=msg;
+}
+
+async function enviarSolicitud(){
+
+const nombre=$('requestName').value.trim();
+
+const correo=$('requestEmail')
+.value.trim().toLowerCase();
+
+const btn=$('requestBtn');
+
+if(!nombre||!correo||
+!$('requestEmail').checkValidity()){
+
+setMsg(
+'requestStatus',
+'Completa tu nombre y escribe un correo válido.'
+);
+
+return;
+}
+
+btn.disabled=true;
+
+setMsg(
+'requestStatus',
+'Enviando solicitud...'
+);
+
+try{
+
+const {error}=await sb
+.from('access_requests')
+.insert([{
+name:nombre,
+email:correo,
+status:'pending'
+}]);
+
+if(error)throw error;
+
+setMsg(
+'requestStatus',
+'Solicitud enviada. Está pendiente de revisión. Cuando sea aprobada, vuelve a esta página para iniciar sesión.'
+);
+
+$('requestName').value='';
+$('requestEmail').value='';
+
+}catch(e){
+
+console.error(e);
+
+setMsg(
+'requestStatus',
+'No se pudo enviar: '+(e.message||'comprueba la conexión y permisos de Supabase.')
+);
+
+}finally{
+
+btn.disabled=false;
+
+}
+
+}
+
+async function checkApproved(email){
+
+const {data,error}=await sb
+.from('access_requests')
+.select('status')
+.eq('email',email.toLowerCase())
+.order('created_at',{ascending:false})
+.limit(1)
+.maybeSingle();
+
+if(error)throw error;
+
+return data?.status==='approved';
+
+}
+
+async function iniciarSesion(){
+
+const email=$('loginEmail')
+.value.trim().toLowerCase();
+
+const password=$('loginPassword').value;
+
+const btn=$('loginBtn');
+
+if(!email||!password){
+
+setMsg(
+'loginStatus',
+'Escribe tu correo y contraseña.'
+);
+
+return;
+
+}
+
+btn.disabled=true;
+
+setMsg(
+'loginStatus',
+'Comprobando inicio de sesión...'
+);
+
+try{
+
+const {data,error}=await sb.auth
+.signInWithPassword({
+email,
+password
+});
+
+if(error)throw error;
+
+const approved=await checkApproved(
+data.user.email
+);
+
+if(!approved){
+
+await sb.auth.signOut();
+
+setMsg(
+'loginStatus',
+'Tu cuenta no tiene una solicitud aprobada.'
+);
+
+return;
+
+}
+
+show('mainSite');
+
+}catch(e){
+
+console.error(e);
+
+setMsg(
+'loginStatus',
+'No se pudo iniciar sesión o comprobar la aprobación. '+(e.message||'')
+);
+
+}finally{
+
+btn.disabled=false;
+
+}
+
+}
+
+async function volverSolicitud(){
+
+show('requestScreen');
+
+}
+
+async function cerrarSesion(){
+
+await sb.auth.signOut();
+
+show('loginScreen');
+
+setMsg(
+'loginStatus',
+'Has cerrado sesión.'
+);
+
+}
+
+function validar(url){
+
+try{
+
+const u=new URL(url);
+
+return u.protocol==='https:'||
+u.protocol==='http:';
+
+}catch(e){
+
+return false;
+
+}
+
+}
+
+function guardarURL(){
+
+const url=$('gameUrl').value.trim();
+
+if(!validar(url)){
+
+setMsg(
+'gameStatus',
+'Pega una URL válida que empiece por https:// o http://'
+);
+
+return;
+
+}
+
+localStorage.setItem(
+'galinjuegos_survival_url',
+url
+);
+
+setMsg(
+'gameStatus',
+'¡Guardado! Survival World ya tiene su URL.'
+);
+
+}
+
+function jugar(){
+
+const url=localStorage.getItem(
+'galinjuegos_survival_url'
+);
+
+if(!url){
+
+setMsg(
+'gameStatus',
+'Primero pega la URL y pulsa GUARDAR URL.'
+);
+
+return;
+
+}
+
+window.open(url,'_blank','noopener');
+
+}
+
+(async()=>{
+
+try{
+
+const {data:{session}}=
+await sb.auth.getSession();
+
+if(session){
+
+const approved=await checkApproved(
+session.user.email
+);
+
+if(approved){
+
+show('mainSite');
+
+}else{
+
+await sb.auth.signOut();
+
+show('requestScreen');
+
+}
+
+}
+
+}catch(e){
+
+console.warn(
+'No se pudo comprobar sesión inicial:',
+e
+);
+
+}
+
+})();
+
+</script>
+
+</body>
+</html>
