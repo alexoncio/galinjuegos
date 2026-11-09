@@ -23,44 +23,61 @@
     );
 
     async function comprobarAcceso() {
-      const mensaje = document.getElementById("mensaje");
+       const mensaje = document.getElementById("mensaje");
 
-      const { data: { user }, error } =
-        await supabase.auth.getUser();
+  try {
+    mensaje.textContent = "Conectando con Supabase...";
 
-      if (error || !user) {
-        mensaje.textContent =
-          "Debes iniciar sesión para comprobar tu acceso.";
-        return;
-      }
+    const { data: { user }, error } =
+      await supabase.auth.getUser();
 
-      const { data, error: errorSolicitud } =
-        await supabase
-          .from("access_requests")
-          .select("status")
-          .eq("email", user.email)
-          .maybeSingle();
-
-      if (errorSolicitud) {
-        mensaje.textContent =
-          "No se pudo comprobar tu solicitud.";
-        return;
-      }
-
-      if (data && data.status === "approved") {
-        mensaje.textContent =
-          "Acceso aprobado. ¡Bienvenido a GALINJUEGOS!";
-      } else if (data && data.status === "pending") {
-        mensaje.textContent =
-          "Tu solicitud todavía está pendiente.";
-      } else if (data && data.status === "rejected") {
-        mensaje.textContent =
-          "Tu solicitud ha sido rechazada.";
-      } else {
-        mensaje.textContent =
-          "No encontramos una solicitud de acceso.";
-      }
+    if (error) {
+      mensaje.textContent =
+        "Error de inicio de sesión: " + error.message;
+      return;
     }
+
+    if (!user) {
+      mensaje.textContent =
+        "No hay una sesión iniciada.";
+      return;
+    }
+
+    mensaje.textContent = "Buscando solicitud...";
+
+    const { data, error: errorSolicitud } =
+      await supabase
+        .from("access_requests")
+        .select("status")
+        .eq("email", user.email)
+        .maybeSingle();
+
+    if (errorSolicitud) {
+      mensaje.textContent =
+        "Error al buscar solicitud: " +
+        errorSolicitud.message;
+      return;
+    }
+
+    if (data && data.status === "approved") {
+      mensaje.textContent =
+        "Acceso aprobado. ¡Bienvenido a GALINJUEGOS!";
+    } else if (data && data.status === "pending") {
+      mensaje.textContent =
+        "Tu solicitud todavía está pendiente.";
+    } else if (data && data.status === "rejected") {
+      mensaje.textContent =
+        "Tu solicitud ha sido rechazada.";
+    } else {
+      mensaje.textContent =
+        "No encontramos una solicitud de acceso.";
+    }
+
+  } catch (error) {
+    mensaje.textContent =
+      "Error: " + error.message;
+  }
+}
 
     comprobarAcceso();
   </script>
