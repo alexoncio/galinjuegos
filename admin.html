@@ -1,0 +1,311 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Administrar GALINJUEGOS</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f1f5f9;
+      margin: 0;
+      padding: 25px;
+      color: #172033;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: auto;
+    }
+
+    h1 {
+      text-align: center;
+      color: #2563eb;
+    }
+
+    .panel {
+      background: white;
+      padding: 25px;
+      border-radius: 15px;
+      box-shadow: 0 4px 15px #0001;
+      margin-top: 20px;
+    }
+
+    input {
+      box-sizing: border-box;
+      width: 100%;
+      padding: 12px;
+      margin: 8px 0;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+    }
+
+    button {
+      padding: 10px 15px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      margin: 4px;
+    }
+
+    .login {
+      background: #2563eb;
+      color: white;
+      width: 100%;
+    }
+
+    .approve {
+      background: #16a34a;
+      color: white;
+    }
+
+    .reject {
+      background: #dc2626;
+      color: white;
+    }
+
+    .logout {
+      background: #475569;
+      color: white;
+    }
+
+    .request {
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 15px;
+      margin: 12px 0;
+      overflow-wrap: anywhere;
+    }
+
+    .status {
+      font-weight: bold;
+    }
+
+    #message {
+      margin-top: 15px;
+      font-weight: bold;
+    }
+
+    #dashboard {
+      display: none;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h1>GALINJUEGOS</h1>
+    <p style="text-align:center">Panel privado de administrador</p>
+
+    <div class="panel" id="loginPanel">
+      <h2>Iniciar sesión</h2>
+
+      <input
+        id="email"
+        type="email"
+        placeholder="Correo de administrador"
+        autocomplete="username"
+      >
+
+      <input
+        id="password"
+        type="password"
+        placeholder="Contraseña"
+        autocomplete="current-password"
+      >
+
+      <button class="login" id="loginButton">
+        Entrar
+      </button>
+
+      <div id="loginMessage"></div>
+    </div>
+
+    <div class="panel" id="dashboard">
+      <h2>Solicitudes de acceso</h2>
+
+      <button class="login" id="refreshButton">
+        Actualizar solicitudes
+      </button>
+
+      <button class="logout" id="logoutButton">
+        Cerrar sesión
+      </button>
+
+      <div id="message"></div>
+      <div id="requests"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { createClient } from
+      "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+
+    const SUPABASE_URL =
+      "https://nloapfrvzhuapbfgioug.supabase.co";
+
+    
+    const SUPABASE_KEY = "sb_publishable_ep2tq4BTA_5pNoBIMYBJRg__qiKuie_";
+
+    const supabase = createClient(
+      SUPABASE_URL,
+      SUPABASE_KEY
+    );
+
+    const loginPanel = document.getElementById("loginPanel");
+    const dashboard = document.getElementById("dashboard");
+    const loginMessage = document.getElementById("loginMessage");
+    const message = document.getElementById("message");
+    const requests = document.getElementById("requests");
+
+    document.getElementById("loginButton").onclick =
+      async function () {
+        loginMessage.textContent = "Comprobando acceso...";
+
+        const email = document.getElementById("email").value.trim();
+        const password = document.getElementById("password").value;
+
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password
+        });
+
+        if (error) {
+          loginMessage.textContent =
+            "No se pudo iniciar sesión. Comprueba el correo y la contraseña.";
+          return;
+        }
+
+        await showDashboard();
+      };
+
+    async function showDashboard() {
+      loginPanel.style.display = "none";
+      dashboard.style.display = "block";
+
+      await loadRequests();
+    }
+
+    async function loadRequests() {
+      message.textContent = "Cargando solicitudes...";
+      requests.replaceChildren();
+
+      const { data, error } = await supabase
+        .from("access_requests")
+        .select("id, name, email, status, created_at")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        message.textContent =
+          "No se pudieron cargar las solicitudes. Comprueba que has entrado como administrador.";
+        return;
+      }
+
+      message.textContent = "";
+
+      if (!data || data.length === 0) {
+        message.textContent = "No hay solicitudes.";
+        return;
+      }
+
+      for (const request of data) {
+        const card = document.createElement("div");
+        card.className = "request";
+
+        const name = document.createElement("h3");
+        name.textContent = request.name || "Sin nombre";
+
+        const email = document.createElement("p");
+        email.textContent = request.email || "Sin correo";
+
+        const status = document.createElement("p");
+        status.className = "status";
+        status.textContent = "Estado: " + request.status;
+
+        card.append(name, email, status);
+
+        if (request.status === "pending") {
+          const approve = document.createElement("button");
+          approve.className = "approve";
+          approve.textContent = "Aprobar";
+
+          approve.onclick = () =>
+            resolveRequest(request.id, "approved");
+
+          const reject = document.createElement("button");
+          reject.className = "reject";
+          reject.textContent = "Rechazar";
+
+          reject.onclick = () =>
+            resolveRequest(request.id, "rejected");
+
+          card.append(approve, reject);
+        }
+
+        requests.appendChild(card);
+      }
+    }
+
+    async function resolveRequest(id, status) {
+      const action = status === "approved"
+        ? "aprobar"
+        : "rechazar";
+
+      if (!confirm("¿Quieres " + action + " esta solicitud?")) {
+        return;
+      }
+
+      message.textContent = "Guardando...";
+
+      const { data, error } = await supabase.rpc(
+        "galinjuegos_resolver_solicitud",
+        {
+          solicitud_id: id,
+          nuevo_estado: status
+        }
+      );
+
+      if (error) {
+        message.textContent =
+          "No se pudo cambiar la solicitud. Comprueba tus permisos.";
+        return;
+      }
+
+      if (data !== true) {
+        message.textContent =
+          "La solicitud ya no está pendiente.";
+        await loadRequests();
+        return;
+      }
+
+      message.textContent = "Solicitud actualizada.";
+      await loadRequests();
+    }
+
+    document.getElementById("refreshButton").onclick =
+      loadRequests;
+
+    document.getElementById("logoutButton").onclick =
+      async function () {
+        await supabase.auth.signOut();
+
+        dashboard.style.display = "none";
+        loginPanel.style.display = "block";
+
+        document.getElementById("password").value = "";
+        loginMessage.textContent = "";
+        requests.replaceChildren();
+      };
+
+    const { data: sessionData } =
+      await supabase.auth.getSession();
+
+    if (sessionData.session) {
+      await showDashboard();
+    }
+  </script>
+</body>
+</html>
