@@ -1,0 +1,68 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prueba de acceso - GALINJUEGOS</title>
+</head>
+<body>
+  <h1>GALINJUEGOS</h1>
+  <p>Prueba del sistema de acceso</p>
+
+  <div id="mensaje">Comprobando acceso...</div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const SUPABASE_URL = "https://nloapfrvzhuapbfgioug.supabase.co";
+    const SUPABASE_KEY = "PEGA_AQUI_TU_CLAVE_PUBLICABLE";
+
+    const supabase = window.supabase.createClient(
+      SUPABASE_URL,
+      SUPABASE_KEY
+    );
+
+    async function comprobarAcceso() {
+      const mensaje = document.getElementById("mensaje");
+
+      const { data: { user }, error } =
+        await supabase.auth.getUser();
+
+      if (error || !user) {
+        mensaje.textContent =
+          "Debes iniciar sesión para comprobar tu acceso.";
+        return;
+      }
+
+      const { data, error: errorSolicitud } =
+        await supabase
+          .from("access_requests")
+          .select("status")
+          .eq("email", user.email)
+          .maybeSingle();
+
+      if (errorSolicitud) {
+        mensaje.textContent =
+          "No se pudo comprobar tu solicitud.";
+        return;
+      }
+
+      if (data && data.status === "approved") {
+        mensaje.textContent =
+          "Acceso aprobado. ¡Bienvenido a GALINJUEGOS!";
+      } else if (data && data.status === "pending") {
+        mensaje.textContent =
+          "Tu solicitud todavía está pendiente.";
+      } else if (data && data.status === "rejected") {
+        mensaje.textContent =
+          "Tu solicitud ha sido rechazada.";
+      } else {
+        mensaje.textContent =
+          "No encontramos una solicitud de acceso.";
+      }
+    }
+
+    comprobarAcceso();
+  </script>
+</body>
+</html>
